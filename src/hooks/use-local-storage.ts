@@ -8,10 +8,16 @@ export function useLocalStorage<T>(
   key: string,
   initialValue: T
 ): [T, (value: T | ((val: T) => T)) => void] {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
   // A function to read the value from localStorage, which will only be executed on the client.
   const readValue = useCallback((): T => {
-    // Prevent build errors by checking for window
-    if (typeof window === 'undefined') {
+    // Prevent build errors by checking for window and ensuring we are on client
+    if (typeof window === 'undefined' || !isClient) {
       return initialValue;
     }
 
@@ -23,7 +29,7 @@ export function useLocalStorage<T>(
       console.warn(`Error reading localStorage key “${key}”:`, error);
       return initialValue;
     }
-  }, [initialValue, key]);
+  }, [initialValue, key, isClient]);
 
   // State to store our value. We pass a function to useState so it only runs once.
   const [storedValue, setStoredValue] = useState<T>(readValue);
@@ -31,7 +37,7 @@ export function useLocalStorage<T>(
   // The setValue function that will update the state and localStorage.
   const setValue = (value: T | ((val: T) => T)) => {
     // Prevent build errors by checking for window
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || !isClient) {
       console.warn(
         `Tried setting localStorage key “${key}” even though environment is not a client`
       );
@@ -46,21 +52,26 @@ export function useLocalStorage<T>(
       setStoredValue(newValue);
       // We dispatch a custom event so every useLocalStorage hook are notified
       window.dispatchEvent(new Event('local-storage'));
-    } catch (error) {
+    } catch (error)
+ {
       console.warn(`Error setting localStorage key “${key}”:`, error);
     }
   };
 
   // Read latest value from localStorage on mount
   useEffect(() => {
-    setStoredValue(readValue());
+    if (isClient) {
+      setStoredValue(readValue());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isClient]);
 
   // Effect to handle changes from other tabs/windows
   useEffect(() => {
     const handleStorageChange = () => {
-      setStoredValue(readValue());
+      if (isClient) {
+        setStoredValue(readValue());
+      }
     };
 
     // 'storage' event is for changes in other documents (tabs),
@@ -72,7 +83,9 @@ export function useLocalStorage<T>(
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('local-storage', handleStorageChange);
     };
-  }, [readValue]);
+  }, [readValue, isClient]);
+  
+  const clientSafeValue = isClient ? storedValue : initialValue;
 
-  return [storedValue, setValue];
+  return [clientSafeValue, setValue];
 }
