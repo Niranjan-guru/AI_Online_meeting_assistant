@@ -32,43 +32,43 @@ export type GenerateMinutesOfMeetingOutput = z.infer<typeof GenerateMinutesOfMee
 export async function generateMinutesOfMeeting(
   input: GenerateMinutesOfMeetingInput
 ): Promise<GenerateMinutesOfMeetingOutput> {
+  const prompt = ai.definePrompt({
+    name: 'generateMinutesOfMeetingPrompt',
+    input: {schema: GenerateMinutesOfMeetingInputSchema},
+    output: {schema: GenerateMinutesOfMeetingOutputSchema},
+    prompt: `You are an AI assistant specialized in generating Minutes of Meeting (MoM) documents from meeting transcriptions.
+
+    Your task is to create a comprehensive MoM, identifying key discussion points, decisions made, and specific action items. If a previous MoM is available, consider it as context and create the new MoM as a continuation, updating existing items where necessary.
+
+    Transcription: {{{transcription}}}
+
+    {{#if previousMom}}
+    Previous Minutes of Meeting: {{{previousMom}}}
+    {{else}}
+    This is the first meeting, so generate the MoM accordingly.
+    {{/if}}
+
+    Output the minutes of meeting in a well structured format including:
+    - A concise summary of the meeting's key discussion points and decisions.
+    - A detailed list of Action Items, including the assigned owner and deadline for each item.
+
+    Ensure that the output is clear, concise, and well-organized for easy readability.
+
+    Follow the output schema strictly, especially the Action Items format.
+  `,
+  });
+
+  const generateMinutesOfMeetingFlow = ai.defineFlow(
+    {
+      name: 'generateMinutesOfMeetingFlow',
+      inputSchema: GenerateMinutesOfMeetingInputSchema,
+      outputSchema: GenerateMinutesOfMeetingOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      return output!;
+    }
+  );
+
   return generateMinutesOfMeetingFlow(input);
 }
-
-const prompt = ai.definePrompt({
-  name: 'generateMinutesOfMeetingPrompt',
-  input: {schema: GenerateMinutesOfMeetingInputSchema},
-  output: {schema: GenerateMinutesOfMeetingOutputSchema},
-  prompt: `You are an AI assistant specialized in generating Minutes of Meeting (MoM) documents from meeting transcriptions.
-
-  Your task is to create a comprehensive MoM, identifying key discussion points, decisions made, and specific action items. If a previous MoM is available, consider it as context and create the new MoM as a continuation, updating existing items where necessary.
-
-  Transcription: {{{transcription}}}
-
-  {{#if previousMom}}
-  Previous Minutes of Meeting: {{{previousMom}}}
-  {{else}}
-  This is the first meeting, so generate the MoM accordingly.
-  {{/if}}
-
-  Output the minutes of meeting in a well structured format including:
-  - A concise summary of the meeting's key discussion points and decisions.
-  - A detailed list of Action Items, including the assigned owner and deadline for each item.
-
-  Ensure that the output is clear, concise, and well-organized for easy readability.
-
-  Follow the output schema strictly, especially the Action Items format.
-`,
-});
-
-const generateMinutesOfMeetingFlow = ai.defineFlow(
-  {
-    name: 'generateMinutesOfMeetingFlow',
-    inputSchema: GenerateMinutesOfMeetingInputSchema,
-    outputSchema: GenerateMinutesOfMeetingOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);

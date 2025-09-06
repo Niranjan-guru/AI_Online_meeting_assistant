@@ -12,6 +12,7 @@ import { generateMoMAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import LiveTranscription from '@/components/minutes/LiveTranscription';
+import VideoTranscription from '@/components/minutes/VideoTranscription';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function Home() {
@@ -24,6 +25,7 @@ export default function Home() {
   const [transcription, setTranscription] = useState('');
   const [currentOutput, setCurrentOutput] = useState<MoMOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const selectedGroup = useMemo(
     () => meetingGroups.find((g) => g.id === selectedGroupId),
@@ -208,9 +210,10 @@ ${currentOutput.actionItems}
               onSelectGroup={handleSelectGroup}
             />
             <Tabs defaultValue="paste">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="paste">Paste Transcript</TabsTrigger>
                 <TabsTrigger value="live">Live Transcript</TabsTrigger>
+                <TabsTrigger value="video">Video Upload</TabsTrigger>
               </TabsList>
               <TabsContent value="paste">
                 <TranscriptionInput
@@ -229,22 +232,31 @@ ${currentOutput.actionItems}
                   onGenerate={handleGenerateMoM}
                   isLoading={isLoading}
                   transcription={transcription}
+                  setTranscription={setTranscription}
+                />
+              </TabsContent>
+              <TabsContent value="video">
+                <VideoTranscription
+                  disabled={!selectedGroupId}
+                  onTranscriptionComplete={setTranscription}
+                  isTranscribing={isTranscribing}
+                  setIsTranscribing={setIsTranscribing}
                 />
               </TabsContent>
             </Tabs>
           </div>
           <div className="flex flex-col gap-6">
-            {isLoading && (
+            {(isLoading || isTranscribing) && (
               <div className="flex h-[500px] items-center justify-center rounded-lg border bg-card p-6 shadow-sm">
                 <div className="flex flex-col items-center gap-4">
                   <Loader2 className="h-12 w-12 animate-spin text-primary" />
                   <p className="text-muted-foreground">
-                    Generating your minutes...
+                    {isLoading ? 'Generating your minutes...' : 'Transcribing video...'}
                   </p>
                 </div>
               </div>
             )}
-            {currentOutput && !isLoading && (
+            {currentOutput && !isLoading && !isTranscribing && (
               <MeetingOutput
                 output={currentOutput}
                 onOutputChange={setCurrentOutput}
@@ -252,7 +264,7 @@ ${currentOutput.actionItems}
                 onDownload={handleDownloadMoM}
               />
             )}
-            {!currentOutput && !isLoading && (
+            {!currentOutput && !isLoading && !isTranscribing && (
               <div className="flex h-[500px] items-center justify-center rounded-lg border border-dashed bg-card/50 p-6 shadow-sm">
                 <div className="text-center">
                   <h3 className="text-lg font-semibold">

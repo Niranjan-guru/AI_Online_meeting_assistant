@@ -30,32 +30,32 @@ const ExtractActionItemsOutputSchema = z.object({
 export type ExtractActionItemsOutput = z.infer<typeof ExtractActionItemsOutputSchema>;
 
 export async function extractActionItems(input: ExtractActionItemsInput): Promise<ExtractActionItemsOutput> {
+  const prompt = ai.definePrompt({
+    name: 'extractActionItemsPrompt',
+    input: {schema: ExtractActionItemsInputSchema},
+    output: {schema: ExtractActionItemsOutputSchema},
+    prompt: `You are an AI assistant tasked with extracting action items from meeting transcripts.
+
+    Analyze the following transcript and identify all action items, including the task, assigned owner, and deadline.
+    Present the action items in a structured format.
+
+    Transcript: {{{transcript}}}
+
+    If no action items are found, return an empty list.
+    `,
+  });
+
+  const extractActionItemsFlow = ai.defineFlow(
+    {
+      name: 'extractActionItemsFlow',
+      inputSchema: ExtractActionItemsInputSchema,
+      outputSchema: ExtractActionItemsOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      return output!;
+    }
+  );
+
   return extractActionItemsFlow(input);
 }
-
-const prompt = ai.definePrompt({
-  name: 'extractActionItemsPrompt',
-  input: {schema: ExtractActionItemsInputSchema},
-  output: {schema: ExtractActionItemsOutputSchema},
-  prompt: `You are an AI assistant tasked with extracting action items from meeting transcripts.
-
-  Analyze the following transcript and identify all action items, including the task, assigned owner, and deadline.
-  Present the action items in a structured format.
-
-  Transcript: {{{transcript}}}
-
-  If no action items are found, return an empty list.
-  `,
-});
-
-const extractActionItemsFlow = ai.defineFlow(
-  {
-    name: 'extractActionItemsFlow',
-    inputSchema: ExtractActionItemsInputSchema,
-    outputSchema: ExtractActionItemsOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);

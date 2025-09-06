@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -26,6 +26,7 @@ interface LiveTranscriptionProps {
   onGenerate: () => void;
   isLoading: boolean;
   transcription: string;
+  setTranscription: (transcript: string) => void;
 }
 
 export default function LiveTranscription({
@@ -34,6 +35,7 @@ export default function LiveTranscription({
   onGenerate,
   isLoading,
   transcription,
+  setTranscription,
 }: LiveTranscriptionProps) {
   const { toast } = useToast();
   const [isListening, setIsListening] = useState(false);
@@ -55,28 +57,66 @@ export default function LiveTranscription({
 
     const checkMicPermission = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-        setHasMicPermission(true);
+        // Quietly check for permission without immediately starting the stream
+        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (permissionStatus.state === 'granted') {
+           setHasMicPermission(true);
+        } else if (permissionStatus.state === 'prompt') {
+            // Can't know for sure until we ask, but for UI purposes let's assume it's not denied yet.
+            setHasMicPermission(null); 
+        }
+        else {
+           setHasMicPermission(false);
+        }
+        permissionStatus.onchange = () => {
+             setHasMicPermission(permissionStatus.state === 'granted');
+        };
       } catch (error) {
-        console.error('Error accessing microphone:', error);
+        console.error('Error checking microphone permission:', error);
         setHasMicPermission(false);
       }
     };
 
     checkMicPermission();
   }, [toast]);
+  
+  const requestMicPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        setHasMicPermission(true);
+        return true;
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        setHasMicPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Microphone Access Denied',
+          description: 'Please enable microphone permissions in your browser settings.',
+        });
+        return false;
+      }
+  }
 
-  const startListening = useCallback(() => {
-    if (!hasMicPermission) {
-      toast({
-        variant: 'destructive',
-        title: 'Microphone Access Denied',
-        description: 'Please enable microphone permissions in your browser settings.',
-      });
+  const startListening = useCallback(async () => {
+    if (isListening || !SpeechRecognition) return;
+
+    let permissionGranted = hasMicPermission;
+    if (permissionGranted === null) {
+        permissionGranted = await requestMicPermission();
+    }
+    
+    if (!permissionGranted) {
+      if (hasMicPermission === false) { // only toast if we know it's denied
+        toast({
+            variant: 'destructive',
+            title: 'Microphone Access Denied',
+            description: 'Please enable microphone permissions in your browser settings.',
+        });
+      }
       return;
     }
-    if (isListening || !SpeechRecognition) return;
+
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -89,7 +129,7 @@ export default function LiveTranscription({
 
     recognition.onend = () => {
       setIsListening(false);
-      // Automatically restart recognition if it stops unexpectedly
+      // Automatically restart recognition if it stops unexpectedly unless we manually stopped it
       if (recognitionRef.current) {
          recognition.start();
       }
@@ -114,19 +154,19 @@ export default function LiveTranscription({
         toast({
             variant: 'destructive',
             title: 'Microphone Access Denied',
-            description: 'Please enable microphone permissions.',
+            description: 'Please enable microphone permissions to use this feature.',
         });
       }
     };
 
     recognition.start();
     recognitionRef.current = recognition;
-  }, [hasMicPermission, isListening, onTranscript, toast]);
+  }, [isListening, hasMicPermission, onTranscript, toast]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
-      recognitionRef.current = null;
+      recognitionRef.current = null; // Important to prevent restart on 'end' event
       setIsListening(false);
     }
   }, []);
@@ -145,6 +185,10 @@ export default function LiveTranscription({
     } else {
       startListening();
     }
+  };
+
+  const handleClear = () => {
+    setTranscription('');
   };
   
   return (
@@ -168,7 +212,7 @@ export default function LiveTranscription({
             </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="relative">
         {hasMicPermission === false && (
             <Alert variant="destructive">
                 <AlertTitle>Microphone Access Required</AlertTitle>
@@ -177,8 +221,8 @@ export default function LiveTranscription({
                 </AlertDescription>
             </Alert>
         )}
-         {hasMicPermission && (
-             <div className="h-48 min-h-48 rounded-md border bg-muted/20 p-3 text-sm overflow-y-auto">
+         {hasMicPermission !== false && (
+             <div className="h-48 min-h-[192px] rounded-md border bg-muted/20 p-3 text-sm overflow-y-auto">
                 {transcription ? transcription : 
                     <p className="text-muted-foreground">
                         {disabled ? 'Select a meeting group to start.' : isListening ? 'Listening...' : 'Click the microphone to start transcribing.'}
@@ -186,6 +230,11 @@ export default function LiveTranscription({
                 }
             </div>
          )}
+        {transcription && hasMicPermission !== false && (
+          <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={handleClear}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </CardContent>
       <CardFooter>
         <Button
