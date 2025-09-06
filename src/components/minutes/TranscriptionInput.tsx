@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, type ChangeEvent } from 'react';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -32,12 +32,16 @@ export default function TranscriptionInput({
 }: TranscriptionInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleClear = () => {
+    onTranscriptionChange('');
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
             <div className='grid gap-1'>
-          <CardTitle>Transcription</CardTitle>
+          <CardTitle>Manual Transcription</CardTitle>
           <CardDescription>
             Paste your meeting transcript below or upload a .txt file.
           </CardDescription>
@@ -61,7 +65,7 @@ export default function TranscriptionInput({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className='relative'>
         <Textarea
           value={transcription}
           onChange={(e) => onTranscriptionChange(e.target.value)}
@@ -73,6 +77,11 @@ export default function TranscriptionInput({
           className="h-48 min-h-48"
           disabled={disabled}
         />
+        {transcription && (
+          <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={handleClear}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </CardContent>
       <CardFooter>
         <Button

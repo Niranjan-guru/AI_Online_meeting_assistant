@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, ChangeEvent } from 'react';
+import { useState, useMemo, ChangeEvent, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Header from '@/components/Header';
 import MeetingManager from '@/components/minutes/MeetingManager';
@@ -11,6 +11,8 @@ import type { MeetingGroup, StoredMoM, MoMOutput } from '@/lib/types';
 import { generateMoMAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import LiveTranscription from '@/components/minutes/LiveTranscription';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function Home() {
   const { toast } = useToast();
@@ -187,6 +189,10 @@ ${currentOutput.actionItems}
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+  
+  const handleLiveTranscript = useCallback((transcript: string) => {
+    setTranscription(prev => prev ? `${prev}\n${transcript}` : transcript);
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -201,14 +207,31 @@ ${currentOutput.actionItems}
               onDeleteGroup={handleDeleteGroup}
               onSelectGroup={handleSelectGroup}
             />
-            <TranscriptionInput
-              transcription={transcription}
-              onTranscriptionChange={setTranscription}
-              onFileChange={handleFileChange}
-              onGenerate={handleGenerateMoM}
-              isLoading={isLoading}
-              disabled={!selectedGroupId}
-            />
+            <Tabs defaultValue="paste">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="paste">Paste Transcript</TabsTrigger>
+                <TabsTrigger value="live">Live Transcript</TabsTrigger>
+              </TabsList>
+              <TabsContent value="paste">
+                <TranscriptionInput
+                  transcription={transcription}
+                  onTranscriptionChange={setTranscription}
+                  onFileChange={handleFileChange}
+                  onGenerate={handleGenerateMoM}
+                  isLoading={isLoading}
+                  disabled={!selectedGroupId}
+                />
+              </TabsContent>
+              <TabsContent value="live">
+                <LiveTranscription
+                  onTranscript={handleLiveTranscript}
+                  disabled={!selectedGroupId}
+                  onGenerate={handleGenerateMoM}
+                  isLoading={isLoading}
+                  transcription={transcription}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
           <div className="flex flex-col gap-6">
             {isLoading && (
