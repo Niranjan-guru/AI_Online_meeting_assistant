@@ -8,7 +8,7 @@ It's a Free to Use, Open Source application...
 
 
 # To Run the application:
-    **Follow These Steps:**
+   **Follow These Steps:**
 Step 1: Clone the Repository into your local directory
 Step 2: Make sure that the dependencies are correctly installed and available in your system
 Step 3: Also Do not forget to install the genkit package
